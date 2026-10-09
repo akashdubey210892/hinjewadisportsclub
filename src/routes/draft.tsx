@@ -17,22 +17,14 @@ const caps = [{ name: "Rahul Verma", team: "Lions" }, { name: "Manish Tiwari", t
 function Draft() {
   const { isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [picks, setPicks] = useState<{ player: string; team: number }[]>([]);
+  const [picks] = useState<{ player: string; team: number }[]>([]);
   useEffect(() => { if (!loading && !isAdmin) void navigate({ to: "/login" }); }, [loading, isAdmin, navigate]);
   if (loading || !isAdmin) return <AppShell back title="Player draft"><p className="p-6 text-center text-sm text-muted-foreground">Checking admin access…</p></AppShell>;
-  const turn = picks.length % 2;
-  const taken = new Set(picks.map((p) => p.player));
   return (
     <AppShell back title="Player draft">
-      <section className="bg-pitch-gradient px-4 pb-4 text-pitch-foreground">
-        <p className="text-xs opacity-80">Sunday League · Match 8 draft</p>
-        <p className="font-display text-2xl font-bold">{caps[turn]!.name}'s pick <span className="text-accent">#{picks.length + 1}</span></p>
-        <p className="mt-1 text-xs opacity-80">Draft preview — selections currently remain in this browser session.</p>
-      </section>
-      <div className="grid grid-cols-2 gap-3 p-4">
-        {caps.map((c, i) => <div key={c.name} className={`rounded-xl bg-card p-3 shadow-card ${turn === i ? "ring-2 ring-accent" : ""}`}><p className="font-display text-lg font-bold">{c.team}</p><p className="text-xs text-muted-foreground">C: {c.name}</p>{picks.filter((p) => p.team === i).map((p) => <p key={p.player} className="text-sm">{p.player}</p>)}</div>)}
+      <div className="p-6 text-center">
+        <h2 className="font-display text-xl font-bold">No draft data yet</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Drafting will be available when real matches, teams, and registered players are stored in Firebase.</p>
       </div>
-      <div className="px-4"><p className="mb-2 text-xs font-semibold text-muted-foreground">AVAILABLE · {pool.length - taken.size}</p><div className="space-y-2">{pool.map((p) => <button key={p} disabled={taken.has(p)} onClick={() => setPicks((x) => [...x, { player: p, team: turn }])} className="flex w-full items-center justify-between rounded-xl bg-card px-4 py-3 shadow-card disabled:opacity-40"><span className="font-medium">{p}</span><span className="text-sm font-semibold text-primary">{taken.has(p) ? "Picked" : "Pick"}</span></button>)}</div></div>
     </AppShell>
-  );
 }
