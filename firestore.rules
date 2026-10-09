@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.email == 'admin@hinjewadisportsclub.com';
+        && request.auth.token.email == 'admin@hclub.com';
     }
 
     // Match centre can be read publicly; only the admin manages match records.
