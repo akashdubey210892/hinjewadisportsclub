@@ -15,7 +15,7 @@ const names = [
 ];
 const roles: Player["role"][] = ["Batter","Batter","All-rounder","Bowler","WK","Bowler","Batter","All-rounder","Bowler","Batter","Bowler"];
 const mk = (start: number): Player[] =>
-  names.slice(start, start + 11).map((n, i) => ({ id: `p${start + i}`, name: n, role: roles[i] }));
+  names.slice(start, start + 11).map((n, i) => ({ id: `p${start + i}`, name: n, role: roles[i]! }));
 
 export const lions: Team = { id: "t1", name: "Shivaji Park Lions", short: "SPL", captain: "Rahul Verma", players: mk(0) };
 export const strikers: Team = { id: "t2", name: "Marine Drive Strikers", short: "MDS", captain: "Manish Tiwari", players: mk(11) };
@@ -41,7 +41,7 @@ export const matches: Match[] = [
     summary: "Andheri Warriors won by 13 runs" },
 ];
 
-export const getMatch = (id: string) => matches.find((m) => m.id === id) ?? matches[0];
+export const getMatch = (id: string) => matches.find((m) => m.id === id) ?? matches[0]!;
 
 export const battingCard = [
   { name: "Rahul Verma", how: "c Desai b Saini", r: 34, b: 21, f: 4, s: 2 },

@@ -23,7 +23,7 @@ function Draft() {
     <AppShell>
       <section className="bg-pitch-gradient px-4 pb-4 text-pitch-foreground">
         <p className="text-xs opacity-80">Sunday League · Match 8 draft</p>
-        <p className="font-display text-2xl font-bold">{caps[turn].name}'s pick <span className="text-accent">#{picks.length + 1}</span></p>
+        <p className="font-display text-2xl font-bold">{caps[turn]!.name}'s pick <span className="text-accent">#{picks.length + 1}</span></p>
       </section>
       <div className="grid grid-cols-2 gap-3 p-4">
         {caps.map((c, i) => (
