@@ -89,7 +89,23 @@ function CreateMatch() {
     finally { setBusy(false); }
   }
 
-  async function removePick(playerId: string) {\n    if (!matchId || busy) return;\n    setBusy(true); setError("");\n    try { await updateDoc(doc(db!, "matches", matchId), { picks: picks.filter(p => p.playerId !== playerId) }); }\n    catch (e) { setError(e instanceof Error ? e.message : "Could not remove player."); }\n    finally { setBusy(false); }\n  }\n\n  async function addCommon(player: Player) {\n    if (!matchId || busy || picks.some(p => p.playerId === player.id)) return;\n    setBusy(true); setError("");\n    try { await updateDoc(doc(db!, "matches", matchId), { picks: [...picks, { playerId: player.id, name: player.name, team: "common" }] }); }\n    catch (e) { setError(e instanceof Error ? e.message : "Could not mark player common."); }\n    finally { setBusy(false); }\n  }\n\n  async function saveToss() {
+  async function removePick(playerId: string) {
+    if (!matchId || busy) return;
+    setBusy(true); setError("");
+    try { await updateDoc(doc(db!, "matches", matchId), { picks: picks.filter(p => p.playerId !== playerId) }); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not remove player."); }
+    finally { setBusy(false); }
+  }
+
+  async function addCommon(player: Player) {
+    if (!matchId || busy || picks.some(p => p.playerId === player.id)) return;
+    setBusy(true); setError("");
+    try { await updateDoc(doc(db!, "matches", matchId), { picks: [...picks, { playerId: player.id, name: player.name, team: "common" }] }); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not mark player common."); }
+    finally { setBusy(false); }
+  }
+
+  async function saveToss() {
     if (!match || !matchId || !toss || !choice) return;
     const tossWinner: 0 | 1 = toss === call ? 0 : 1;
     const battingFirst: 0 | 1 = choice === "Bat" ? tossWinner : (tossWinner === 0 ? 1 : 0);
