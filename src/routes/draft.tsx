@@ -110,7 +110,7 @@ function CreateMatch() {
     finally { setBusy(false); }
   }
 
-  const roster = (team: 0 | 1) => teamPicks[team];
+  const roster = (team: 0 | 1) => [...teamPicks[team], ...picks.filter(p => p.team === "common")];
   return (
     <AppShell back title="Create match">
       <section className="bg-pitch-gradient px-4 pb-4 text-pitch-foreground">
@@ -131,7 +131,7 @@ function CreateMatch() {
         </form>}
         {match && match.stage === "draft" && <>
           <div className="rounded-xl bg-card p-4 shadow-card"><p className="font-display text-xl font-bold">{match.title}</p><p className="text-sm text-muted-foreground">{match.overs} overs · Pick #{picks.length+1}</p><p className="mt-2 font-semibold">{match.teamNames[currentTeam]}'s turn to pick</p><p className="text-xs text-muted-foreground">Captains can select the same player for both teams if desired.</p></div>
-          <div className="grid grid-cols-2 gap-3">{([0,1] as const).map(team=><div key={team} className="rounded-xl bg-card p-3 shadow-card"><p className="font-semibold">{match.teamNames[team]}</p><p className="text-xs text-muted-foreground">Captain: {players.find(p=>p.id===match.captains[team])?.name ?? "—"}</p>{roster(team).map((p,i)=><p key={i} className="mt-1 text-sm">{p.name}</p>)}</div>)}</div>
+          <div className="grid grid-cols-2 gap-3">{([0,1] as const).map(team=><div key={team} className="rounded-xl bg-card p-3 shadow-card"><p className="font-semibold">{match.teamNames[team]}</p><p className="text-xs text-muted-foreground">Captain: {players.find(p=>p.id===match.captains[team])?.name ?? "—"}</p>{roster(team).map(p=><div key={p.playerId} className="mt-1 flex items-center justify-between gap-2 text-sm"><span>{p.name}{p.team === "common" ? " · Common" : ""}</span><button disabled={busy} onClick={() => void removePick(p.playerId)} className="text-xs text-destructive underline">Deselect</button></div>)}</div>)}</div>
           <div className="rounded-xl bg-card p-4 shadow-card"><p className="mb-3 font-semibold">Available players</p><div className="space-y-2">{players.map(p=>{ const picked=pickedPlayerIds.has(p.id); return <div key={p.id} className="flex items-center gap-2 rounded-lg border px-3 py-3"><span className="min-w-0 flex-1">{p.name}<span className="block text-xs text-muted-foreground">{p.role ?? "Player"}</span></span>{picked ? <span className="text-xs text-muted-foreground">Already selected</span> : <><button disabled={busy} onClick={()=>void addPick(p)} className="rounded-md bg-primary px-2 py-2 text-xs font-semibold text-primary-foreground">Pick for {match.teamNames[currentTeam]}</button><button disabled={busy} onClick={()=>void addCommon(p)} className="rounded-md border px-2 py-2 text-xs font-semibold">Common</button></>}</div>})}</div></div>
           <button disabled={busy || !picks.length} onClick={()=>void updateDoc(doc(db!,"matches",matchId),{stage:"toss"})} className="w-full rounded-lg border py-3 font-semibold">Finish draft & go to toss</button>
         </>}
