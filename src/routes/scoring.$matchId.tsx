@@ -16,7 +16,7 @@ type Ball = { id: string; label: string; runs: number; legal: boolean; wicket: b
 type ScoreState = { runs: number; wkts: number; legal: number; balls: Ball[]; target: number; updatedAt: number };
 
 function initialScore(matchId: string, target: number): ScoreState {
-  return { runs: matchId === "m1" ? 61 : 0, wkts: matchId === "m1" ? 3 : 0, legal: matchId === "m1" ? 38 : 0, balls: [], target, updatedAt: Date.now() };
+  return { runs: 0, wkts: 0, legal: 0, balls: [], target, updatedAt: Date.now() };
 }
 
 function Scoring() {
@@ -28,15 +28,15 @@ function Scoring() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [ready, setReady] = useState(false);
-  const target = score.target || 99;
+  const target = score.target || 0;
   const runs = score.runs;
   const wkts = score.wkts;
   const legal = score.legal;
   const balls = score.balls;
   const overs = `${Math.floor(legal / 6)}.${legal % 6}`;
   const crr = legal ? (runs / (legal / 6)).toFixed(2) : "0.00";
-  const ballsLeft = Math.max(m.overs * 6 - legal, 0);
-  const rrr = ballsLeft ? (Math.max(target - runs, 0) / (ballsLeft / 6)).toFixed(2) : "—";
+  const ballsLeft = m ? Math.max(m.overs * 6 - legal, 0) : 0;
+  const rrr = target > 0 && ballsLeft ? (Math.max(target - runs, 0) / (ballsLeft / 6)).toFixed(2) : "—";
 
   useEffect(() => { if (!loading && !isAdmin) void navigate({ to: "/login" }); }, [loading, isAdmin, navigate]);
 
@@ -86,11 +86,12 @@ function Scoring() {
   };
 
   if (loading || !isAdmin) return <AppShell back title="Scorer"><p className="p-6 text-center text-sm text-muted-foreground">Checking admin access…</p></AppShell>;
+  if (!m) return <AppShell back title="Scorer"><div className="p-6 text-center"><p className="font-semibold">Match not found</p><p className="mt-2 text-sm text-muted-foreground">Create a real match before entering scores.</p></div></AppShell>;
 
   return (
     <AppShell back title="Scorer">
       <section className="bg-pitch-gradient px-4 pb-5 text-pitch-foreground">
-        <p className="text-xs opacity-80">{m.teamB.name} · Target {target}</p>
+        <p className="text-xs opacity-80">{m.teamB.name} · {target > 0 ? `Target ${target}` : "Target not set"}</p>
         <p className="font-display text-5xl font-bold">{runs}/{wkts} <span className="text-xl font-normal opacity-80">({overs})</span></p>
         <p className="text-sm text-accent">Need {Math.max(target - runs, 0)} off {ballsLeft} balls</p>
         <div className="mt-3 flex flex-wrap gap-1.5">{balls.slice(-8).map((b) => <BallChip key={b.id} v={b.label} />)}</div>
