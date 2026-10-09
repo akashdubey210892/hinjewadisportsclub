@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Home, Radio, Users, Trophy, LogIn, LogOut, UserRound } from "lucide-react";
+import { Home, Radio, Users, LogIn, LogOut, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth";
 
