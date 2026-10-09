@@ -31,7 +31,11 @@ function Scoring() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [ready, setReady] = useState(false);
-  const [manualStrike, setManualStrike] = useState(false);\n  const [showNextBowler, setShowNextBowler] = useState(false);\n  const [nextBowlerId, setNextBowlerId] = useState("");\n  const [newPlayerId, setNewPlayerId] = useState("");\n  const [newPlayerTeam, setNewPlayerTeam] = useState<0 | 1>("0" as unknown as 0);
+  const [manualStrike, setManualStrike] = useState(false);
+  const [showNextBowler, setShowNextBowler] = useState(false);
+  const [nextBowlerId, setNextBowlerId] = useState("");
+  const [newPlayerId, setNewPlayerId] = useState("");
+  const [newPlayerTeam, setNewPlayerTeam] = useState<0 | 1>(0);
 
   useEffect(() => { if (!loading && !isAdmin) void navigate({ to: "/login" }); }, [loading, isAdmin, navigate]);
   useEffect(() => {
@@ -89,7 +93,22 @@ function Scoring() {
     void persist({...score,runs:score.runs+event.runs,wkts:score.wkts+(event.wicket?1:0),legal:nextLegal,balls:[...balls,ball],batterStats:stats,strikerId,nonStrikerId});
   };
 
-  async function addPlayerToTeam() {\n    if (!db || !match || !newPlayerId || saving) return;\n    const player = players.find(p => p.id === newPlayerId);\n    if (!player) return;\n    const picks = match.picks ?? [];\n    if (picks.some(p => p.playerId === player.id && (p.team === newPlayerTeam || p.team === "common"))) { setMessage("Player is already in that team."); return; }\n    setSaving(true);\n    try {\n      const nextPicks = [...picks, { playerId: player.id, name: player.name, team: newPlayerTeam }];\n      await setDoc(doc(db, "matches", matchId), { picks: nextPicks }, { merge: true });\n      setMatch({ ...match, picks: nextPicks }); setNewPlayerId(""); setMessage(`${player.name} added to ${match.teamNames[newPlayerTeam]}.`);\n    } catch(e) { setMessage(e instanceof Error ? e.message : "Could not add player."); }\n    finally { setSaving(false); }\n  }\n\n  const undo = () => {
+  async function addPlayerToTeam() {
+    if (!db || !match || !newPlayerId || saving) return;
+    const player = players.find(p => p.id === newPlayerId);
+    if (!player) return;
+    const picks = match.picks ?? [];
+    if (picks.some(p => p.playerId === player.id && (p.team === newPlayerTeam || p.team === "common"))) { setMessage("Player is already in that team."); return; }
+    setSaving(true);
+    try {
+      const nextPicks = [...picks, { playerId: player.id, name: player.name, team: newPlayerTeam }];
+      await setDoc(doc(db, "matches", matchId), { picks: nextPicks }, { merge: true });
+      setMatch({ ...match, picks: nextPicks }); setNewPlayerId(""); setMessage(`${player.name} added to ${match.teamNames[newPlayerTeam]}.`);
+    } catch(e) { setMessage(e instanceof Error ? e.message : "Could not add player."); }
+    finally { setSaving(false); }
+  }
+
+  const undo = () => {
     if (!balls.length || saving) return;
     // Rebuild totals and batter figures from remaining deliveries to keep the scorecard consistent.
     const remaining=balls.slice(0,-1);
@@ -105,7 +124,8 @@ function Scoring() {
   if (loading || !isAdmin) return <AppShell back title="Scorer"><p className="p-6 text-center text-sm">Checking admin access…</p></AppShell>;
   if (!match) return <AppShell back title="Scorer"><div className="p-6 text-center"><p className="font-semibold">Match not found</p><p className="mt-2 text-sm text-muted-foreground">Create a match first.</p></div></AppShell>;
 
-  const choose = (field: "strikerId"|"nonStrikerId"|"bowlerId", value: string) => void persist({...score,[field]:value});\n  const chooseNextBowler = async () => { if (!nextBowlerId) return; await persist({...score,bowlerId:nextBowlerId}); setShowNextBowler(false); };
+  const choose = (field: "strikerId"|"nonStrikerId"|"bowlerId", value: string) => void persist({...score,[field]:value});
+  const chooseNextBowler = async () => { if (!nextBowlerId) return; await persist({...score,bowlerId:nextBowlerId}); setShowNextBowler(false); };
   return (
     <AppShell back title="Scorer">
       <section className="bg-pitch-gradient px-4 pb-5 text-pitch-foreground">
@@ -128,7 +148,8 @@ function Scoring() {
         {manualStrike && <div className="rounded-xl border p-3"><p className="mb-2 text-sm">Choose who faces the next ball (use after a run out or unusual crossing).</p><div className="flex gap-2"><button onClick={()=>{setManualStrike(false);void persist({...score,strikerId:score.strikerId,nonStrikerId:score.nonStrikerId});}} className="flex-1 rounded-lg bg-primary py-2 text-primary-foreground">Keep current strike</button><button onClick={()=>{setManualStrike(false);void persist({...score,strikerId:score.nonStrikerId,nonStrikerId:score.strikerId});}} className="flex-1 rounded-lg bg-secondary py-2">Swap strike</button></div></div>}
         <div className="space-y-3 rounded-xl bg-card p-4 shadow-card"><h2 className="font-display text-lg font-bold">Add player during match</h2><p className="text-xs text-muted-foreground">For late arrivals, add a registered player to either team. Common players can be selected for both teams in match setup.</p><select value={newPlayerId} onChange={e=>setNewPlayerId(e.target.value)} className="w-full rounded-lg border bg-background px-3 py-2.5"><option value="">Choose player</option>{players.filter(p=>!(match.picks??[]).some(k=>k.playerId===p.id && k.team!=="common")).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><select value={newPlayerTeam} onChange={e=>setNewPlayerTeam(Number(e.target.value) as 0|1)} className="w-full rounded-lg border bg-background px-3 py-2.5"><option value={0}>{match.teamNames[0]}</option><option value={1}>{match.teamNames[1]}</option></select><button disabled={saving||!newPlayerId} onClick={()=>void addPlayerToTeam()} className="w-full rounded-lg border py-2.5 font-semibold disabled:opacity-50">Add player to team</button></div><div className="rounded-xl bg-card p-4 shadow-card"><h2 className="mb-2 font-display text-lg font-bold">Batting</h2>{battingRoster.map((p,i)=>{const st=score.batterStats[p.playerId]??blankStats();return <div key={i} className="flex justify-between border-t py-2 text-sm"><span>{p.name}{p.playerId===score.strikerId?" *":""}</span><span>{st.runs} ({st.balls}) · 4s {st.fours} · 6s {st.sixes}</span></div>})}</div>
         <button onClick={undo} disabled={!balls.length||saving} className="flex w-full items-center justify-center gap-2 rounded-xl border py-3 font-semibold disabled:opacity-40"><Undo2 className="h-4 w-4"/>Undo last delivery</button>
-        {showNextBowler && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><div role="dialog" aria-modal="true" className="w-full max-w-sm space-y-4 rounded-2xl bg-card p-5 shadow-xl"><h2 className="font-display text-2xl font-bold">Over complete</h2><p className="text-sm text-muted-foreground">Strike has changed. Choose the next bowler to continue.</p><select value={nextBowlerId} onChange={e=>setNextBowlerId(e.target.value)} className="w-full rounded-lg border bg-background px-3 py-3"><option value="">Choose next bowler</option>{bowlingRoster.filter(p=>p.playerId!==score.bowlerId).map(p=><option key={p.playerId} value={p.playerId}>{p.name}</option>)}</select><button disabled={!nextBowlerId||saving} onClick={()=>void chooseNextBowler()} className="w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground">Confirm bowler</button></div></div>}\n        {message && <p role="status" className="break-words rounded-lg bg-secondary p-3 text-sm">{message}</p>}
+        {showNextBowler && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><div role="dialog" aria-modal="true" className="w-full max-w-sm space-y-4 rounded-2xl bg-card p-5 shadow-xl"><h2 className="font-display text-2xl font-bold">Over complete</h2><p className="text-sm text-muted-foreground">Strike has changed. Choose the next bowler to continue.</p><select value={nextBowlerId} onChange={e=>setNextBowlerId(e.target.value)} className="w-full rounded-lg border bg-background px-3 py-3"><option value="">Choose next bowler</option>{bowlingRoster.filter(p=>p.playerId!==score.bowlerId).map(p=><option key={p.playerId} value={p.playerId}>{p.name}</option>)}</select><button disabled={!nextBowlerId||saving} onClick={()=>void chooseNextBowler()} className="w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground">Confirm bowler</button></div></div>}
+        {message && <p role="status" className="break-words rounded-lg bg-secondary p-3 text-sm">{message}</p>}
         <p className="text-center text-xs text-muted-foreground">{saving?"Saving to Firebase…":ready?"Live score is synchronized with Firestore.":"Connecting to live score…"}</p>
       </div>
     </AppShell>
