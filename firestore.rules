@@ -3,7 +3,13 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.email == 'admin@hclub.com';
+        && request.auth.token.email == 'admin@hinjewadisportsclub.com';
+    }
+
+    // Match centre can be read publicly; only the admin manages match records.
+    match /matches/{matchId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
 
     // Live scores are public to read; only the admin account may write.
@@ -12,7 +18,7 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    match /matches/{matchId} {\n      allow read, create, update, delete: if isAdmin();\n    }\n\n    // Player records may contain contact information, so keep them admin-only.
+    // Player records may contain contact information, so keep them admin-only.
     match /players/{playerId} {
       allow read, create, update, delete: if isAdmin();
     }
