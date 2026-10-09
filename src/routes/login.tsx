@@ -47,7 +47,7 @@ function LoginPage() {
           <p className="mt-1 text-center text-sm text-muted-foreground">Sign in to manage players, draft, toss and scoring.</p>
           {!firebaseConfigured && (
             <div className="mt-5 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-              Firebase is not configured yet. Add the Firebase environment values to your local <code>.env</code> file and enable Email/Password sign-in in Firebase Console.
+              Firebase is not configured yet. Add the FIREBASE_* secrets in Lovable project settings and enable Email/Password sign-in in Firebase Console.
             </div>
           )}
           <form onSubmit={submit} className="mt-6 space-y-4">

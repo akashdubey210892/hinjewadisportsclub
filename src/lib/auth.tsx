@@ -13,6 +13,15 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    getFirebaseConfig().then(initFirebase).catch((e) => console.error("Firebase config load failed", e)).finally(() => setReady(true));
+  }, []);
+  if (!ready) return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading…</div>;
+  return <AuthInner>{children}</AuthInner>;
+}
+
+function AuthInner({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 

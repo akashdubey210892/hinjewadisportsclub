@@ -28,7 +28,7 @@ function Index() {
   const [matches,setMatches]=useState<Match[]>([]);
   const [error,setError]=useState("");
   useEffect(()=>{
-    if(!db){setError("Firebase is not configured. Add your local .env values.");return;}
+    if(!db){setError("Firebase is not configured. Add the FIREBASE_* project secrets in Lovable.");return;}
     return onSnapshot(query(collection(db,"matches"),orderBy("createdAt","desc")),s=>{
       setMatches(s.docs.map(d=>({id:d.id,...(d.data() as Omit<Match,"id">)})));
       setError("");
