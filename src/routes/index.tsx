@@ -63,8 +63,12 @@ function Index() {
         </div>
       </div>
       <div className="space-y-3 p-4">
-        {list.map((m) => <MatchCard key={m.id} m={m} />)}
-        <p className="text-center text-xs text-muted-foreground">Live score updates appear automatically when Firebase is configured.</p>
+        {list.length > 0 ? list.map((m) => <MatchCard key={m.id} m={m} />) : (
+          <div className="rounded-xl border border-dashed p-6 text-center">
+            <p className="font-semibold">No {tab} matches yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">Real matches will appear here once match creation and Firebase match storage are configured.</p>
+          </div>
+        )}
       </div>
     </AppShell>
   );
