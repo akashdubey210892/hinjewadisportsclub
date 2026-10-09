@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'admin@hinjewadisportsclub.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    // Live scores are public to read; only the admin account may write.
+    match /matchScores/{matchId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Player records may contain contact information, so keep them admin-only.
+    match /players/{playerId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    // Deny access by default to all other collections until explicitly configured.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
