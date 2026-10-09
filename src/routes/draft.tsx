@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
 
 type Player = { id: string; name: string; role?: string };
-type DraftPick = { playerId: string; name: string; team: 0 | 1 };
+type DraftPick = { playerId: string; name: string; team: 0 | 1 | "common" };
 type MatchSetup = {
   title: string; overs: number; teamNames: [string, string];
   captains: [string, string]; picks: DraftPick[]; stage: "draft" | "toss" | "ready" | "live";
@@ -57,6 +57,7 @@ function CreateMatch() {
   ], [picks]);
   const currentTeam: 0 | 1 = (picks.length % 2) as 0 | 1;
   const pickedCounts = [teamPicks[0].length, teamPicks[1].length];
+  const pickedPlayerIds = new Set(picks.map(p => p.playerId));
 
   if (loading || !isAdmin) return <AppShell back title="Create match"><p className="p-6 text-center text-sm">Checking admin access…</p></AppShell>;
   if (!db) return <AppShell back title="Create match"><p className="p-6">Configure Firebase first.</p></AppShell>;
@@ -88,7 +89,7 @@ function CreateMatch() {
     finally { setBusy(false); }
   }
 
-  async function saveToss() {
+  async function removePick(playerId: string) {\n    if (!matchId || busy) return;\n    setBusy(true); setError("");\n    try { await updateDoc(doc(db!, "matches", matchId), { picks: picks.filter(p => p.playerId !== playerId) }); }\n    catch (e) { setError(e instanceof Error ? e.message : "Could not remove player."); }\n    finally { setBusy(false); }\n  }\n\n  async function addCommon(player: Player) {\n    if (!matchId || busy || picks.some(p => p.playerId === player.id)) return;\n    setBusy(true); setError("");\n    try { await updateDoc(doc(db!, "matches", matchId), { picks: [...picks, { playerId: player.id, name: player.name, team: "common" }] }); }\n    catch (e) { setError(e instanceof Error ? e.message : "Could not mark player common."); }\n    finally { setBusy(false); }\n  }\n\n  async function saveToss() {
     if (!match || !matchId || !toss || !choice) return;
     const tossWinner: 0 | 1 = toss === call ? 0 : 1;
     const battingFirst: 0 | 1 = choice === "Bat" ? tossWinner : (tossWinner === 0 ? 1 : 0);
@@ -131,7 +132,7 @@ function CreateMatch() {
         {match && match.stage === "draft" && <>
           <div className="rounded-xl bg-card p-4 shadow-card"><p className="font-display text-xl font-bold">{match.title}</p><p className="text-sm text-muted-foreground">{match.overs} overs · Pick #{picks.length+1}</p><p className="mt-2 font-semibold">{match.teamNames[currentTeam]}'s turn to pick</p><p className="text-xs text-muted-foreground">Captains can select the same player for both teams if desired.</p></div>
           <div className="grid grid-cols-2 gap-3">{([0,1] as const).map(team=><div key={team} className="rounded-xl bg-card p-3 shadow-card"><p className="font-semibold">{match.teamNames[team]}</p><p className="text-xs text-muted-foreground">Captain: {players.find(p=>p.id===match.captains[team])?.name ?? "—"}</p>{roster(team).map((p,i)=><p key={i} className="mt-1 text-sm">{p.name}</p>)}</div>)}</div>
-          <div className="rounded-xl bg-card p-4 shadow-card"><p className="mb-3 font-semibold">Available players</p><div className="space-y-2">{players.map(p=><button key={p.id} disabled={busy} onClick={()=>void addPick(p)} className="flex w-full items-center justify-between rounded-lg border px-3 py-3 text-left"><span>{p.name}<span className="block text-xs text-muted-foreground">{p.role ?? "Player"}</span></span><span className="text-sm font-semibold text-primary">Pick for {match.teamNames[currentTeam]}</span></button>)}</div></div>
+          <div className="rounded-xl bg-card p-4 shadow-card"><p className="mb-3 font-semibold">Available players</p><div className="space-y-2">{players.map(p=>{ const picked=pickedPlayerIds.has(p.id); return <div key={p.id} className="flex items-center gap-2 rounded-lg border px-3 py-3"><span className="min-w-0 flex-1">{p.name}<span className="block text-xs text-muted-foreground">{p.role ?? "Player"}</span></span>{picked ? <span className="text-xs text-muted-foreground">Already selected</span> : <><button disabled={busy} onClick={()=>void addPick(p)} className="rounded-md bg-primary px-2 py-2 text-xs font-semibold text-primary-foreground">Pick for {match.teamNames[currentTeam]}</button><button disabled={busy} onClick={()=>void addCommon(p)} className="rounded-md border px-2 py-2 text-xs font-semibold">Common</button></>}</div>})}</div></div>
           <button disabled={busy || !picks.length} onClick={()=>void updateDoc(doc(db!,"matches",matchId),{stage:"toss"})} className="w-full rounded-lg border py-3 font-semibold">Finish draft & go to toss</button>
         </>}
         {match && match.stage === "toss" && <div className="space-y-4 rounded-xl bg-card p-4 shadow-card">
