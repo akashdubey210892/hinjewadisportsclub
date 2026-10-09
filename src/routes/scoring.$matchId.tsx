@@ -55,13 +55,13 @@ function Scoring() {
     return () => { unsubMatch(); unsubPlayers(); unsubScore(); };
   }, [isAdmin, matchId]);
 
+  const battingTeam = match?.battingFirst ?? 0;
+  const inningsComplete = !!match && (score.legal >= match.overs * 6 || score.wkts >= 10 || (score.target > 0 && score.runs >= score.target));
+
   useEffect(() => {
     if (!db || !match || !match.firstInnings || !inningsComplete || match.status === "completed") return;
     void updateDoc(doc(db, "matches", matchId), { status: "completed", stage: "completed", completedAt: Date.now() }).catch(e => setMessage(e instanceof Error ? e.message : "Could not mark match completed."));
   }, [match, matchId, inningsComplete]);
-
-  const battingTeam = match?.battingFirst ?? 0;
-  const inningsComplete = !!match && (score.legal >= match.overs * 6 || score.wkts >= 10 || (score.target > 0 && score.runs >= score.target));
   const secondInningsStarted = !!match?.firstInnings;
   const matchFinished = inningsComplete && secondInningsStarted;
   const firstInnings = match?.firstInnings;
