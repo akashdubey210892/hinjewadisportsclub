@@ -26,4 +26,4 @@ export const db = app ? getFirestore(app) : null;
 // or a secret; the actual password is stored only by Firebase Authentication.
 export const ADMIN_USERNAME = "admin";
 export const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL as string | undefined)?.trim().toLowerCase()
-  || "admin@hinjewadisportsclub.com";
+  || "admin@hclub.com";
