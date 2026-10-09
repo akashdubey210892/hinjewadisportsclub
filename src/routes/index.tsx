@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { collection, deleteDoc, doc, onSnapshot, query, orderBy, writeBatch } from "firebase/firestore";
+import { collection, doc, onSnapshot, query, orderBy, writeBatch } from "firebase/firestore";
 import { MapPin, Trash2 } from "lucide-react";
 import { AppShell, LiveBadge } from "@/components/AppShell";
 import { db } from "@/lib/firebase";
@@ -22,7 +22,9 @@ function MatchCard({match, canDelete, onDelete}: {match:Match; canDelete:boolean
     <div className="space-y-2">{match.teamNames.map((name,i)=><div key={i} className="flex items-center justify-between"><span className="font-semibold">{name}</span>{score&&match.status==="live"&&i===(match.battingFirst??0)&&<span className="font-display text-lg font-bold">{score.runs}/{score.wkts} <span className="text-xs font-normal text-muted-foreground">({Math.floor(score.legal/6)}.{score.legal%6})</span></span>}</div>)}</div>
     <p className="mt-2 text-xs text-muted-foreground">{match.overs} overs{match.venue ? " · "+match.venue : ""}{match.date ? " · "+match.date : ""}</p>
     <p className="mt-2 text-sm text-primary">{match.status==="live"?"View live score":match.status==="completed"?"View match":"Match setup"}</p>
-  </Link>;
+  </Link>
+  {canDelete && <button type="button" onClick={() => onDelete(match)} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive"><Trash2 className="h-4 w-4"/>Delete match</button>}
+  </div>;
 }
 function Index() {
   const { isAdmin } = useAuth();
