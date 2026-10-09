@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Home, Radio, Users, LogIn, LogOut, UserRound } from "lucide-react";
+import { Home, Users, LogIn, LogOut, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth";
 
@@ -14,7 +14,6 @@ export function AppShell({ title, children, back }: { title?: string; children: 
 
   const allNavItems = [
     { to: "/", icon: Home, label: "Home", protected: false, params: undefined },
-    { to: "/scoring/$matchId", icon: Radio, label: "Score", params: { matchId: "m1" }, protected: true },
     { to: "/draft", icon: Users, label: "Create Match", protected: true, params: undefined },
     
     { to: "/players", icon: UserRound, label: "Players", protected: true, params: undefined },
