@@ -12,13 +12,14 @@ export function AppShell({ title, children, back }: { title?: string; children: 
     await navigate({ to: "/" });
   }
 
-  const navItems = [
+  const allNavItems = [
     { to: "/", icon: Home, label: "Home", protected: false, params: undefined },
     { to: "/scoring/$matchId", icon: Radio, label: "Score", params: { matchId: "m1" }, protected: true },
     { to: "/draft", icon: Users, label: "Draft", protected: true, params: undefined },
     { to: "/toss", icon: Trophy, label: "Toss", protected: true, params: undefined },
     { to: "/players", icon: UserRound, label: "Players", protected: true, params: undefined },
   ];
+  const navItems = isAdmin ? allNavItems : allNavItems.filter((item) => item.label === "Home");
 
   return (
     <div className="mx-auto min-h-screen max-w-md bg-background pb-20">
