@@ -8,7 +8,7 @@ Mobile-first local cricket match dashboard and scorer.
 2. Run `npm install`.
 3. Copy `.env.example` to `.env` and fill in the Firebase web app config from Firebase Console → Project settings → General → Your apps.
 4. In Firebase Console → Authentication → Sign-in method, enable **Email/Password**.
-5. In Authentication → Users, create the admin user with email `admin@hinjewadisportsclub.com` and set its password. The requested temporary password can be used for local testing, but choose a stronger password before production.
+5. In Authentication → Users, create the admin user with email `admin@hclub.com` and choose a strong password. Do not commit passwords to the repository.
 6. Create a Cloud Firestore database.
 7. Publish the rules from `firestore.rules` in Firebase Console → Firestore Database → Rules. The rule email must match `VITE_ADMIN_EMAIL` in `.env`.
 8. Add `localhost` to Authentication → Settings → Authorized domains if it is not already present.
