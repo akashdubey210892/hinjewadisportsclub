@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DraftRouteImport } from './routes/draft'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as PlayersRouteImport } from './routes/players'
 import { Route as TossRouteImport } from './routes/toss'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 import { Route as ScoringMatchIdRouteImport } from './routes/scoring.$matchId'
@@ -23,6 +25,16 @@ const IndexRoute = IndexRouteImport.update({
 const DraftRoute = DraftRouteImport.update({
   id: '/draft',
   path: '/draft',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayersRoute = PlayersRouteImport.update({
+  id: '/players',
+  path: '/players',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TossRoute = TossRouteImport.update({
@@ -44,6 +56,8 @@ const ScoringMatchIdRoute = ScoringMatchIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/draft': typeof DraftRoute
+  '/login': typeof LoginRoute
+  '/players': typeof PlayersRoute
   '/toss': typeof TossRoute
   '/match/$matchId': typeof MatchMatchIdRoute
   '/scoring/$matchId': typeof ScoringMatchIdRoute
@@ -51,6 +65,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/draft': typeof DraftRoute
+  '/login': typeof LoginRoute
+  '/players': typeof PlayersRoute
   '/toss': typeof TossRoute
   '/match/$matchId': typeof MatchMatchIdRoute
   '/scoring/$matchId': typeof ScoringMatchIdRoute
@@ -59,19 +75,37 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/draft': typeof DraftRoute
+  '/login': typeof LoginRoute
+  '/players': typeof PlayersRoute
   '/toss': typeof TossRoute
   '/match/$matchId': typeof MatchMatchIdRoute
   '/scoring/$matchId': typeof ScoringMatchIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/draft' | '/toss' | '/match/$matchId' | '/scoring/$matchId'
+  fullPaths:
+    | '/'
+    | '/draft'
+    | '/login'
+    | '/players'
+    | '/toss'
+    | '/match/$matchId'
+    | '/scoring/$matchId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/draft' | '/toss' | '/match/$matchId' | '/scoring/$matchId'
+  to:
+    | '/'
+    | '/draft'
+    | '/login'
+    | '/players'
+    | '/toss'
+    | '/match/$matchId'
+    | '/scoring/$matchId'
   id:
     | '__root__'
     | '/'
     | '/draft'
+    | '/login'
+    | '/players'
     | '/toss'
     | '/match/$matchId'
     | '/scoring/$matchId'
@@ -80,6 +114,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DraftRoute: typeof DraftRoute
+  LoginRoute: typeof LoginRoute
+  PlayersRoute: typeof PlayersRoute
   TossRoute: typeof TossRoute
   MatchMatchIdRoute: typeof MatchMatchIdRoute
   ScoringMatchIdRoute: typeof ScoringMatchIdRoute
@@ -99,6 +135,20 @@ declare module '@tanstack/react-router' {
       path: '/draft'
       fullPath: '/draft'
       preLoaderRoute: typeof DraftRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/players': {
+      id: '/players'
+      path: '/players'
+      fullPath: '/players'
+      preLoaderRoute: typeof PlayersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/toss': {
@@ -128,6 +178,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DraftRoute: DraftRoute,
+  LoginRoute: LoginRoute,
+  PlayersRoute: PlayersRoute,
   TossRoute: TossRoute,
   MatchMatchIdRoute: MatchMatchIdRoute,
   ScoringMatchIdRoute: ScoringMatchIdRoute,
