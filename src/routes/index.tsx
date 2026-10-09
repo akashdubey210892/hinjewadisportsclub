@@ -1,75 +1,50 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
+import { collection, doc, onSnapshot, query, orderBy } from "firebase/firestore";
 import { MapPin } from "lucide-react";
 import { AppShell, LiveBadge } from "@/components/AppShell";
-import { matches, type Status, type Match } from "@/lib/data";
 import { db } from "@/lib/firebase";
 
+type Status = "live" | "upcoming" | "completed";
+type Match = { id: string; title: string; venue?: string; date?: string; status: Status; overs: number; teamNames: [string,string]; battingFirst?: 0|1 };
+type LiveScore = { runs: number; wkts: number; legal: number; updatedAt?: number };
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [
-    { title: "GullyScore — Live local cricket scores" },
-    { name: "description", content: "Live ball-by-ball scores, scorecards and drafts for local and box cricket matches." },
-    { property: "og:title", content: "GullyScore — Live local cricket scores" },
-    { property: "og:description", content: "Live ball-by-ball scores, scorecards and drafts for local cricket." },
-  ] }),
+  head: () => ({ meta: [{ title: "GullyScore — Hinjewadi Sports Club" }, { name: "description", content: "Live cricket scores and match management for Hinjewadi Sports Club." }] }),
   component: Index,
 });
 
-type LiveScore = { runs: number; wkts: number; legal: number; target?: number; updatedAt?: number };
-
-function MatchCard({ m }: { m: Match }) {
-  const [liveScore, setLiveScore] = useState<LiveScore | null>(null);
-  useEffect(() => {
-    if (!db) return;
-    return onSnapshot(doc(db, "matchScores", m.id), (snapshot) => {
-      setLiveScore(snapshot.exists() ? snapshot.data() as LiveScore : null);
-    });
-  }, [m.id]);
-
-  return (
-    <Link to="/match/$matchId" params={{ matchId: m.id }} className="block rounded-xl bg-card p-4 shadow-card">
-      <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
-        <span className="font-medium">{m.title}</span>
-        {m.status === "live" ? <LiveBadge /> : <span>{m.date}</span>}
-      </div>
-      {[m.teamA, m.teamB].map((t, i) => {
-        const inn = m.innings.find((x) => x.team === t.short) ?? m.innings[i];
-        const isChasing = i === 1 && Boolean(liveScore);
-        const runs = isChasing && liveScore ? liveScore.runs : inn?.runs;
-        const wickets = isChasing && liveScore ? liveScore.wkts : inn?.wickets;
-        const overs = isChasing && liveScore ? `${Math.floor(liveScore.legal / 6)}.${liveScore.legal % 6}` : inn?.overs;
-        return (
-          <div key={t.id} className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary font-display text-xs font-bold text-secondary-foreground">{t.short}</span><span className="font-semibold">{t.name}</span></div>
-            {runs !== undefined && wickets !== undefined && <span className="font-display text-lg font-bold">{runs}/{wickets} <span className="text-xs font-normal text-muted-foreground">({overs})</span></span>}
-          </div>
-        );
-      })}
-      <p className={`mt-2 text-sm ${m.status === "live" ? "text-live font-medium" : m.status === "completed" ? "text-primary font-medium" : "text-muted-foreground"}`}>{liveScore && m.status === "live" ? `CRR ${liveScore.legal ? (liveScore.runs / (liveScore.legal / 6)).toFixed(2) : "0.00"} · Need ${Math.max((liveScore.target ?? 99) - liveScore.runs, 0)} runs` : m.summary}</p>
-      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{m.venue}</p>
-    </Link>
-  );
+function MatchCard({match}: {match:Match}) {
+  const [score,setScore]=useState<LiveScore|null>(null);
+  useEffect(()=>{if(!db)return;return onSnapshot(doc(db,"matchScores",match.id),s=>setScore(s.exists()?s.data() as LiveScore:null));},[match.id]);
+  return <Link to="/match/$matchId" params={{matchId:match.id}} className="block rounded-xl bg-card p-4 shadow-card">
+    <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground"><span className="font-medium">{match.title}</span>{match.status==="live"?<LiveBadge/>:<span className="capitalize">{match.status}</span>}</div>
+    <div className="space-y-2">{match.teamNames.map((name,i)=><div key={i} className="flex items-center justify-between"><span className="font-semibold">{name}</span>{score&&match.status==="live"&&i===(match.battingFirst??0)&&<span className="font-display text-lg font-bold">{score.runs}/{score.wkts} <span className="text-xs font-normal text-muted-foreground">({Math.floor(score.legal/6)}.{score.legal%6})</span></span>}</div>)}</div>
+    <p className="mt-2 text-xs text-muted-foreground">{match.overs} overs{match.venue ? " · "+match.venue : ""}{match.date ? " · "+match.date : ""}</p>
+    <p className="mt-2 text-sm text-primary">{match.status==="live"?"View live score":match.status==="completed"?"View match":"Match setup"}</p>
+  </Link>;
 }
-
 function Index() {
-  const [tab, setTab] = useState<Status>("live");
-  const list = matches.filter((m) => m.status === tab);
-  return (
-    <AppShell>
-      <div className="bg-pitch-gradient px-4 pb-4 text-pitch-foreground">
-        <div className="flex gap-1 rounded-lg bg-pitch-foreground/10 p-1">
-          {(["live", "upcoming", "completed"] as Status[]).map((s) => <button key={s} onClick={() => setTab(s)} className={`flex-1 rounded-md py-1.5 text-sm font-semibold capitalize transition ${tab === s ? "bg-card text-foreground" : ""}`}>{s}</button>)}
-        </div>
-      </div>
-      <div className="space-y-3 p-4">
-        {list.length > 0 ? list.map((m) => <MatchCard key={m.id} m={m} />) : (
-          <div className="rounded-xl border border-dashed p-6 text-center">
-            <p className="font-semibold">No {tab} matches yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">Real matches will appear here once match creation and Firebase match storage are configured.</p>
-          </div>
-        )}
-      </div>
-    </AppShell>
-  );
+  const [tab,setTab]=useState<Status>("live");
+  const [matches,setMatches]=useState<Match[]>([]);
+  const [error,setError]=useState("");
+  useEffect(()=>{
+    if(!db){setError("Firebase is not configured. Add your local .env values.");return;}
+    return onSnapshot(query(collection(db,"matches"),orderBy("createdAt","desc")),s=>{
+      setMatches(s.docs.map(d=>({id:d.id,...(d.data() as Omit<Match,"id">)})));
+      setError("");
+    },e=>setError(e.message));
+  },[]);
+  const list=matches.filter(m=>m.status===tab);
+  return <AppShell>
+    <div className="bg-pitch-gradient px-4 pb-4 text-pitch-foreground">
+      <p className="text-xs opacity-80">HINJEWADI SPORTS CLUB</p><h1 className="font-display text-3xl font-bold">Match centre</h1>
+      <p className="mb-4 text-sm opacity-80">Real matches and live scores</p>
+      <div className="flex gap-1 rounded-lg bg-pitch-foreground/10 p-1">{(["live","upcoming","completed"] as Status[]).map(s=><button key={s} onClick={()=>setTab(s)} className={"flex-1 rounded-md py-1.5 text-sm font-semibold capitalize transition "+(tab===s?"bg-card text-foreground":"")}>{s}</button>)}</div>
+    </div>
+    <div className="space-y-3 p-4">
+      {error&&<p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+      {list.map(m=><MatchCard key={m.id} match={m}/>)}
+      {!error&&!list.length&&<div className="rounded-xl border border-dashed p-6 text-center"><MapPin className="mx-auto mb-2 h-6 w-6 text-muted-foreground"/><p className="font-semibold">No {tab} matches</p><p className="mt-1 text-sm text-muted-foreground">Admin-created matches will appear here.</p></div>}
+    </div>
+  </AppShell>;
 }
