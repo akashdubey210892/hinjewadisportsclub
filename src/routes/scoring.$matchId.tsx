@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Undo2 } from "lucide-react";
+import { Undo2, ArrowLeftRight } from "lucide-react";
 import { collection, doc, onSnapshot, setDoc } from "firebase/firestore";
 import { AppShell, BallChip } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
@@ -134,6 +134,7 @@ function Scoring() {
   if (!match) return <AppShell back title="Scorer"><div className="p-6 text-center"><p className="font-semibold">Match not found</p><p className="mt-2 text-sm text-muted-foreground">Create a match first.</p></div></AppShell>;
 
   const choose = (field: "strikerId"|"nonStrikerId"|"bowlerId", value: string) => void persist({...score,[field]:value});
+  const swapStrike = () => { if (!score.strikerId || !score.nonStrikerId || saving) return; void persist({...score,strikerId:score.nonStrikerId,nonStrikerId:score.strikerId}); };
   const chooseNextBowler = async () => { if (!nextBowlerId) return; await persist({...score,bowlerId:nextBowlerId}); setShowNextBowler(false); };
   const chooseNewBatter = async () => {
     if (!newBatterId || saving) return;
@@ -153,8 +154,7 @@ function Scoring() {
       <div className="space-y-3 p-4">
         <div className="grid grid-cols-3 gap-2 rounded-xl bg-card p-3 text-center shadow-card"><div><p className="text-xs text-muted-foreground">CRR</p><p className="font-display text-xl font-bold">{crr}</p></div><div><p className="text-xs text-muted-foreground">RRR</p><p className="font-display text-xl font-bold">{rrr}</p></div><div><p className="text-xs text-muted-foreground">Overs</p><p className="font-display text-xl font-bold">{overs}</p></div></div>
         <div className="space-y-3 rounded-xl bg-card p-4 shadow-card">
-          <div><label className="mb-1 block text-sm font-medium">Striker (on strike)</label><select value={score.strikerId} onChange={e=>choose("strikerId",e.target.value)} className="w-full rounded-lg border bg-background px-3 py-2.5"><option value="">Select striker</option>{battingRoster.map((p,i)=><option key={i} value={p.playerId}>{p.name}</option>)}</select></div>
-          <div><label className="mb-1 block text-sm font-medium">Non-striker</label><select value={score.nonStrikerId} onChange={e=>choose("nonStrikerId",e.target.value)} className="w-full rounded-lg border bg-background px-3 py-2.5"><option value="">Select non-striker</option>{battingRoster.map((p,i)=><option key={i} value={p.playerId}>{p.name}</option>)}</select></div>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2"><div className="rounded-lg bg-secondary p-3"><p className="text-xs text-muted-foreground">Striker</p><p className="font-semibold">{score.strikerId ? selectedPlayer(score.strikerId) : "Not selected"}</p></div><button type="button" title="Swap striker and non-striker" aria-label="Swap striker and non-striker" disabled={!score.strikerId || !score.nonStrikerId || saving} onClick={swapStrike} className="rounded-full border p-3 disabled:opacity-40"><ArrowLeftRight className="h-5 w-5"/></button><div className="rounded-lg bg-secondary p-3"><p className="text-xs text-muted-foreground">Non-striker</p><p className="font-semibold">{score.nonStrikerId ? selectedPlayer(score.nonStrikerId) : "Not selected"}</p></div></div>
           <div><label className="mb-1 block text-sm font-medium">Bowler</label><select value={score.bowlerId} onChange={e=>choose("bowlerId",e.target.value)} className="w-full rounded-lg border bg-background px-3 py-2.5"><option value="">Select bowler</option>{bowlingRoster.map((p,i)=><option key={i} value={p.playerId} disabled={p.playerId===score.strikerId || p.playerId===score.nonStrikerId}>{p.name}</option>)}</select></div>
           <div className="grid grid-cols-2 gap-2 text-sm"><div className="rounded-lg bg-secondary p-3"><p className="text-muted-foreground">On strike</p><p className="font-semibold">{score.strikerId?selectedPlayer(score.strikerId):"Not selected"}</p></div><div className="rounded-lg bg-secondary p-3"><p className="text-muted-foreground">Bowling</p><p className="font-semibold">{score.bowlerId?selectedPlayer(score.bowlerId):"Not selected"}</p></div></div>
         </div>
