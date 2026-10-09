@@ -37,7 +37,7 @@ function PlayersPage() {
   }, [isAdmin]);
 
   if (loading || !isAdmin) return <AppShell back title="Players"><p className="p-6 text-center text-sm text-muted-foreground">Checking admin access…</p></AppShell>;
-  if (!db) return <AppShell back title="Players"><p className="p-6">Firebase is not configured. Add the VITE_FIREBASE_* values first.</p></AppShell>;
+  if (!db) return <AppShell back title="Players"><p className="p-6">Firebase is not configured. Add the FIREBASE_* project secrets first.</p></AppShell>;
 
   function resetForm() { setName(""); setMobile(""); setRole("All-rounder"); setEditing(null); }
 

@@ -1,29 +1,32 @@
-import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string | undefined,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID as string | undefined,
+export type FirebaseRuntimeConfig = {
+  apiKey: string; authDomain: string; projectId: string; storageBucket: string;
+  messagingSenderId: string; appId: string; adminEmail: string;
 };
 
-export const firebaseConfigured = Boolean(
-  firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId,
-);
+// Live ES-module bindings: set once by initFirebase() before the app renders.
+export let firebaseConfigured = false;
+export let auth: Auth | null = null;
+export let db: Firestore | null = null;
+export let missingFirebaseKeys: string[] = [];
 
-const app = firebaseConfigured
-  ? (getApps().length ? getApp() : initializeApp(firebaseConfig))
-  : null;
-
-export const auth = app ? getAuth(app) : null;
-export const db = app ? getFirestore(app) : null;
-
-// The username is mapped to a Firebase Authentication email. This is not a password
-// or a secret; the actual password is stored only by Firebase Authentication.
 export const ADMIN_USERNAME = "admin";
-export const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL as string | undefined)?.trim().toLowerCase()
-  || "admin@hclub.com";
+export let ADMIN_EMAIL = "admin@hclub.com";
+
+export function initFirebase(cfg: FirebaseRuntimeConfig) {
+  const map: Record<string, string> = {
+    FIREBASE_API_KEY: cfg.apiKey, FIREBASE_AUTH_DOMAIN: cfg.authDomain, FIREBASE_PROJECT_ID: cfg.projectId,
+    FIREBASE_STORAGE_BUCKET: cfg.storageBucket, FIREBASE_MESSAGING_SENDER_ID: cfg.messagingSenderId, FIREBASE_APP_ID: cfg.appId,
+  };
+  missingFirebaseKeys = Object.entries(map).filter(([, v]) => !v).map(([k]) => k);
+  if (cfg.adminEmail) ADMIN_EMAIL = cfg.adminEmail.trim().toLowerCase();
+  firebaseConfigured = Boolean(cfg.apiKey && cfg.authDomain && cfg.projectId && cfg.appId);
+  if (!firebaseConfigured) return;
+  const { adminEmail: _a, ...config } = cfg;
+  const app: FirebaseApp = getApps().length ? getApp() : initializeApp(config);
+  auth = getAuth(app);
+  db = getFirestore(app);
+}
