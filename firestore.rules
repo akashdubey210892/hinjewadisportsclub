@@ -12,7 +12,7 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // Player records may contain contact information, so keep them admin-only.
+    match /matches/{matchId} {\n      allow read, create, update, delete: if isAdmin();\n    }\n\n    // Player records may contain contact information, so keep them admin-only.
     match /players/{playerId} {
       allow read, create, update, delete: if isAdmin();
     }
