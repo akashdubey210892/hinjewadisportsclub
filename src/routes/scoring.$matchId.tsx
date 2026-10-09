@@ -1,9 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Undo2 } from "lucide-react";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { collection, doc, onSnapshot, setDoc } from "firebase/firestore";
 import { AppShell, BallChip } from "@/components/AppShell";
-import { getMatch } from "@/lib/data";
 import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
 
@@ -12,111 +11,125 @@ export const Route = createFileRoute("/scoring/$matchId")({
   component: Scoring,
 });
 
-type Ball = { id: string; label: string; runs: number; legal: boolean; wicket: boolean; kind: string; createdAt: number };
-type ScoreState = { runs: number; wkts: number; legal: number; balls: Ball[]; target: number; updatedAt: number };
+type Player = { id: string; name: string; role?: string };
+type Pick = { playerId: string; name: string; team: 0 | 1 };
+type MatchDoc = { title: string; overs: number; teamNames: [string,string]; picks: Pick[]; battingFirst?: 0 | 1; stage: string; status: string };
+type Ball = { id: string; label: string; runs: number; legal: boolean; wicket: boolean; kind: string; batterId?: string; bowlerId?: string; createdAt: number };
+type BatterStats = { runs: number; balls: number; fours: number; sixes: number; out: boolean };
+type ScoreState = { runs: number; wkts: number; legal: number; balls: Ball[]; target: number; updatedAt: number; strikerId: string; nonStrikerId: string; bowlerId: string; batterStats: Record<string,BatterStats> };
 
-function initialScore(matchId: string, target: number): ScoreState {
-  return { runs: 0, wkts: 0, legal: 0, balls: [], target, updatedAt: Date.now() };
-}
+const blankStats = (): BatterStats => ({ runs: 0, balls: 0, fours: 0, sixes: 0, out: false });
+const emptyScore = (): ScoreState => ({ runs: 0, wkts: 0, legal: 0, balls: [], target: 0, updatedAt: Date.now(), strikerId: "", nonStrikerId: "", bowlerId: "", batterStats: {} });
 
 function Scoring() {
   const { matchId } = Route.useParams();
-  const m = getMatch(matchId);
   const { isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [score, setScore] = useState<ScoreState>(() => initialScore(matchId, 99));
+  const [match, setMatch] = useState<MatchDoc | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [score, setScore] = useState<ScoreState>(emptyScore);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [ready, setReady] = useState(false);
-  const target = score.target || 0;
+  const [manualStrike, setManualStrike] = useState(false);
+
+  useEffect(() => { if (!loading && !isAdmin) void navigate({ to: "/login" }); }, [loading, isAdmin, navigate]);
+  useEffect(() => {
+    if (!isAdmin || !db) return;
+    const unsubMatch = onSnapshot(doc(db, "matches", matchId), s => setMatch(s.exists() ? s.data() as MatchDoc : null), e=>setMessage(e.message));
+    const unsubPlayers = onSnapshot(collection(db,"players"),s=>setPlayers(s.docs.map(d=>({id:d.id,...(d.data() as Omit<Player,"id">)}))));
+    const unsubScore = onSnapshot(doc(db, "matchScores", matchId), s => {
+      if (s.exists()) setScore({ ...emptyScore(), ...(s.data() as Partial<ScoreState>) });
+      else setScore(emptyScore());
+      setReady(true);
+    }, e => { setMessage(`Could not load live score: ${e.message}`); setReady(true); });
+    return () => { unsubMatch(); unsubPlayers(); unsubScore(); };
+  }, [isAdmin, matchId]);
+
+  const battingTeam = match?.battingFirst ?? 0;
+  const battingRoster = useMemo(() => (match?.picks ?? []).filter(p=>p.team===battingTeam), [match,battingTeam]);
+  const bowlingRoster = useMemo(() => (match?.picks ?? []).filter(p=>p.team!==(battingTeam)), [match,battingTeam]);
+  const selectedPlayer = (id: string) => players.find(p=>p.id===id)?.name ?? match?.picks.find(p=>p.playerId===id)?.name ?? "Select player";
+  const target = score.target;
   const runs = score.runs;
   const wkts = score.wkts;
   const legal = score.legal;
-  const balls = score.balls;
+  const balls = score.balls ?? [];
   const overs = `${Math.floor(legal / 6)}.${legal % 6}`;
   const crr = legal ? (runs / (legal / 6)).toFixed(2) : "0.00";
-  const ballsLeft = m ? Math.max(m.overs * 6 - legal, 0) : 0;
+  const ballsLeft = match ? Math.max(match.overs * 6 - legal, 0) : 0;
   const rrr = target > 0 && ballsLeft ? (Math.max(target - runs, 0) / (ballsLeft / 6)).toFixed(2) : "—";
-
-  useEffect(() => { if (!loading && !isAdmin) void navigate({ to: "/login" }); }, [loading, isAdmin, navigate]);
-
-  useEffect(() => {
-    if (!isAdmin || !db) { setReady(true); return; }
-    return onSnapshot(doc(db, "matchScores", matchId), (snapshot) => {
-      if (snapshot.exists()) setScore(snapshot.data() as ScoreState);
-      setReady(true);
-    }, (e) => { setMessage(`Could not load live score: ${e.message}`); setReady(true); });
-  }, [isAdmin, matchId]);
 
   const persist = async (next: ScoreState) => {
     if (!db) { setMessage("Firebase is not configured. Score was not saved."); return; }
-    setSaving(true);
-    setMessage("");
+    setSaving(true); setMessage("");
     try {
-      await setDoc(doc(db, "matchScores", matchId), { ...next, updatedAt: Date.now() });
-      setScore({ ...next, updatedAt: Date.now() });
-      setMessage("Score saved");
-    } catch (e) {
-      setMessage(e instanceof Error ? `Unable to save score: ${e.message}` : "Unable to save score.");
-    } finally { setSaving(false); }
+      await setDoc(doc(db,"matchScores",matchId),{...next,updatedAt:Date.now()});
+      setScore({...next,updatedAt:Date.now()}); setMessage("Score saved");
+    } catch(e) { setMessage(e instanceof Error ? `Unable to save score: ${e.message}` : "Unable to save score."); }
+    finally { setSaving(false); }
   };
 
-  const add = (event: Omit<Ball, "id" | "createdAt">) => {
+  const add = (event: Omit<Ball,"id"|"createdAt">) => {
     if (saving || !isAdmin) return;
-    const ball: Ball = { ...event, id: crypto.randomUUID(), createdAt: Date.now() };
-    void persist({
-      ...score,
-      runs: score.runs + ball.runs,
-      wkts: score.wkts + (ball.wicket ? 1 : 0),
-      legal: score.legal + (ball.legal ? 1 : 0),
-      balls: [...score.balls, ball],
-    });
+    if (!score.strikerId || !score.bowlerId) { setMessage("Select the striker and bowler before scoring."); return; }
+    const ball: Ball = {...event,id:crypto.randomUUID(),createdAt:Date.now(),batterId:score.strikerId,bowlerId:score.bowlerId};
+    const stats = {...score.batterStats};
+    const current = {...(stats[score.strikerId] ?? blankStats())};
+    if (event.kind === "runs") { current.runs += event.runs; current.balls += 1; if(event.runs===4) current.fours++; if(event.runs===6) current.sixes++; }
+    else if (event.legal && event.kind !== "bye" && event.kind !== "leg-bye") current.balls += 1;
+    if(event.wicket) current.out=true;
+    stats[score.strikerId]=current;
+    const nextLegal=score.legal+(event.legal?1:0);
+    const rotate=event.kind==="runs" ? event.runs%2===1 : (event.kind==="bye"||event.kind==="leg-bye") && event.runs%2===1;
+    let strikerId=rotate?score.nonStrikerId:score.strikerId;
+    let nonStrikerId=rotate?score.strikerId:score.nonStrikerId;
+    if(event.wicket) { strikerId=score.nonStrikerId; setManualStrike(true); }
+    if(event.legal && nextLegal%6===0) { const old=strikerId; strikerId=nonStrikerId; nonStrikerId=old; }
+    void persist({...score,runs:score.runs+event.runs,wkts:score.wkts+(event.wicket?1:0),legal:nextLegal,balls:[...balls,ball],batterStats:stats,strikerId,nonStrikerId});
   };
 
   const undo = () => {
     if (!balls.length || saving) return;
-    const last = balls[balls.length - 1]!;
-    void persist({
-      ...score,
-      runs: Math.max(0, score.runs - last.runs),
-      wkts: Math.max(0, score.wkts - (last.wicket ? 1 : 0)),
-      legal: Math.max(0, score.legal - (last.legal ? 1 : 0)),
-      balls: balls.slice(0, -1),
-    });
+    // Rebuild totals and batter figures from remaining deliveries to keep the scorecard consistent.
+    const remaining=balls.slice(0,-1);
+    const next=emptyScore();
+    next.target=score.target; next.strikerId=score.strikerId; next.nonStrikerId=score.nonStrikerId; next.bowlerId=score.bowlerId;
+    for(const b of remaining) {
+      next.runs+=b.runs; next.wkts+=b.wicket?1:0; next.legal+=b.legal?1:0;
+      if(b.batterId) { const st={...(next.batterStats[b.batterId]??blankStats())}; if(b.kind==="runs"){st.runs+=b.runs;st.balls++;if(b.runs===4)st.fours++;if(b.runs===6)st.sixes++;} else if(b.legal&&b.kind!=="bye"&&b.kind!=="leg-bye") st.balls++; if(b.wicket)st.out=true;next.batterStats[b.batterId]=st; }
+    }
+    next.balls=remaining; void persist(next);
   };
 
-  if (loading || !isAdmin) return <AppShell back title="Scorer"><p className="p-6 text-center text-sm text-muted-foreground">Checking admin access…</p></AppShell>;
-  if (!m) return <AppShell back title="Scorer"><div className="p-6 text-center"><p className="font-semibold">Match not found</p><p className="mt-2 text-sm text-muted-foreground">Create a real match before entering scores.</p></div></AppShell>;
+  if (loading || !isAdmin) return <AppShell back title="Scorer"><p className="p-6 text-center text-sm">Checking admin access…</p></AppShell>;
+  if (!match) return <AppShell back title="Scorer"><div className="p-6 text-center"><p className="font-semibold">Match not found</p><p className="mt-2 text-sm text-muted-foreground">Create a match first.</p></div></AppShell>;
 
+  const choose = (field: "strikerId"|"nonStrikerId"|"bowlerId", value: string) => void persist({...score,[field]:value});
   return (
     <AppShell back title="Scorer">
       <section className="bg-pitch-gradient px-4 pb-5 text-pitch-foreground">
-        <p className="text-xs opacity-80">{m.teamB.name} · {target > 0 ? `Target ${target}` : "Target not set"}</p>
+        <p className="text-xs opacity-80">{match.teamNames[battingTeam]} batting · {match.overs} overs</p>
         <p className="font-display text-5xl font-bold">{runs}/{wkts} <span className="text-xl font-normal opacity-80">({overs})</span></p>
-        <p className="text-sm text-accent">Need {Math.max(target - runs, 0)} off {ballsLeft} balls</p>
-        <div className="mt-3 flex flex-wrap gap-1.5">{balls.slice(-8).map((b) => <BallChip key={b.id} v={b.label} />)}</div>
+        {target>0 && <p className="text-sm text-accent">Need {Math.max(target-runs,0)} off {ballsLeft} balls</p>}
+        <div className="mt-3 flex flex-wrap gap-1.5">{balls.slice(-8).map(b=><BallChip key={b.id} v={b.label}/>)}</div>
       </section>
       <div className="space-y-3 p-4">
-        <div className="grid grid-cols-3 gap-2 rounded-xl bg-card p-3 text-center shadow-card">
-          <div><p className="text-xs text-muted-foreground">CRR</p><p className="font-display text-xl font-bold">{crr}</p></div>
-          <div><p className="text-xs text-muted-foreground">RRR</p><p className="font-display text-xl font-bold">{rrr}</p></div>
-          <div><p className="text-xs text-muted-foreground">Overs</p><p className="font-display text-xl font-bold">{overs}</p></div>
+        <div className="grid grid-cols-3 gap-2 rounded-xl bg-card p-3 text-center shadow-card"><div><p className="text-xs text-muted-foreground">CRR</p><p className="font-display text-xl font-bold">{crr}</p></div><div><p className="text-xs text-muted-foreground">RRR</p><p className="font-display text-xl font-bold">{rrr}</p></div><div><p className="text-xs text-muted-foreground">Overs</p><p className="font-display text-xl font-bold">{overs}</p></div></div>
+        <div className="space-y-3 rounded-xl bg-card p-4 shadow-card">
+          <div><label className="mb-1 block text-sm font-medium">Striker (on strike)</label><select value={score.strikerId} onChange={e=>choose("strikerId",e.target.value)} className="w-full rounded-lg border bg-background px-3 py-2.5"><option value="">Select striker</option>{battingRoster.map((p,i)=><option key={i} value={p.playerId}>{p.name}</option>)}</select></div>
+          <div><label className="mb-1 block text-sm font-medium">Non-striker</label><select value={score.nonStrikerId} onChange={e=>choose("nonStrikerId",e.target.value)} className="w-full rounded-lg border bg-background px-3 py-2.5"><option value="">Select non-striker</option>{battingRoster.map((p,i)=><option key={i} value={p.playerId}>{p.name}</option>)}</select></div>
+          <div><label className="mb-1 block text-sm font-medium">Bowler</label><select value={score.bowlerId} onChange={e=>choose("bowlerId",e.target.value)} className="w-full rounded-lg border bg-background px-3 py-2.5"><option value="">Select bowler</option>{bowlingRoster.map((p,i)=><option key={i} value={p.playerId}>{p.name}</option>)}</select></div>
+          <div className="grid grid-cols-2 gap-2 text-sm"><div className="rounded-lg bg-secondary p-3"><p className="text-muted-foreground">On strike</p><p className="font-semibold">{score.strikerId?selectedPlayer(score.strikerId):"Not selected"}</p></div><div className="rounded-lg bg-secondary p-3"><p className="text-muted-foreground">Bowling</p><p className="font-semibold">{score.bowlerId?selectedPlayer(score.bowlerId):"Not selected"}</p></div></div>
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          {[0, 1, 2, 3, 4, 6].map((r) => <button key={r} disabled={saving} onClick={() => add({ label: String(r), runs: r, legal: true, wicket: false, kind: "runs" })} className={`h-16 rounded-xl font-display text-2xl font-bold shadow-card disabled:opacity-50 ${r === 4 ? "bg-four text-primary-foreground" : r === 6 ? "bg-six text-primary-foreground" : "bg-card"}`}>{r}</button>)}
-          <button disabled={saving} onClick={() => add({ label: "W", runs: 0, legal: true, wicket: true, kind: "wicket" })} className="col-span-3 h-14 rounded-xl bg-wicket font-display text-xl font-bold text-destructive-foreground disabled:opacity-50">WICKET</button>
-        </div>
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { label: "Wd", runs: 1, legal: false, kind: "wide" },
-            { label: "Nb", runs: 1, legal: false, kind: "no-ball" },
-            { label: "B", runs: 1, legal: true, kind: "bye" },
-            { label: "Lb", runs: 1, legal: true, kind: "leg-bye" },
-          ].map((e) => <button key={e.label} disabled={saving} onClick={() => add({ ...e, wicket: false })} className="h-12 rounded-xl bg-secondary font-semibold text-secondary-foreground disabled:opacity-50">{e.label}</button>)}
-        </div>
-        <button onClick={undo} disabled={!balls.length || saving} className="flex w-full items-center justify-center gap-2 rounded-xl border py-3 font-semibold disabled:opacity-40"><Undo2 className="h-4 w-4" />Undo last delivery</button>
-        {message && <p role="status" className={`rounded-lg p-3 text-sm ${message.startsWith("Unable") || message.startsWith("Could not") || message.startsWith("Firebase") ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}>{message}</p>}
-        <p className="text-center text-xs text-muted-foreground">{saving ? "Saving to Firebase…" : ready ? "Live score is synchronized with Firestore." : "Connecting to live score…"}</p>
+        <div className="grid grid-cols-3 gap-2">{[0,1,2,3,4,6].map(r=><button key={r} disabled={saving} onClick={()=>add({label:String(r),runs:r,legal:true,wicket:false,kind:"runs"})} className={`h-16 rounded-xl font-display text-2xl font-bold shadow-card disabled:opacity-50 ${r===4?"bg-four text-primary-foreground":r===6?"bg-six text-primary-foreground":"bg-card"}`}>{r}</button>)}<button disabled={saving} onClick={()=>add({label:"W",runs:0,legal:true,wicket:true,kind:"wicket"})} className="col-span-3 h-14 rounded-xl bg-wicket font-display text-xl font-bold text-destructive-foreground">WICKET</button></div>
+        <div className="grid grid-cols-4 gap-2">{[{label:"Wd",runs:1,legal:false,kind:"wide"},{label:"Nb",runs:1,legal:false,kind:"no-ball"},{label:"B",runs:1,legal:true,kind:"bye"},{label:"Lb",runs:1,legal:true,kind:"leg-bye"}].map(e=><button key={e.label} disabled={saving} onClick={()=>add({...e,wicket:false})} className="h-12 rounded-xl bg-secondary font-semibold">{e.label}</button>)}</div>
+        <button onClick={()=>setManualStrike(v=>!v)} className="w-full rounded-lg border py-2.5 text-sm font-semibold">{manualStrike?"Hide":"Run out / manual strike correction"}</button>
+        {manualStrike && <div className="rounded-xl border p-3"><p className="mb-2 text-sm">Choose who faces the next ball (use after a run out or unusual crossing).</p><div className="flex gap-2"><button onClick={()=>{setManualStrike(false);void persist({...score,strikerId:score.strikerId,nonStrikerId:score.nonStrikerId});}} className="flex-1 rounded-lg bg-primary py-2 text-primary-foreground">Keep current strike</button><button onClick={()=>{setManualStrike(false);void persist({...score,strikerId:score.nonStrikerId,nonStrikerId:score.strikerId});}} className="flex-1 rounded-lg bg-secondary py-2">Swap strike</button></div></div>}
+        <div className="rounded-xl bg-card p-4 shadow-card"><h2 className="mb-2 font-display text-lg font-bold">Batting</h2>{battingRoster.map((p,i)=>{const st=score.batterStats[p.playerId]??blankStats();return <div key={i} className="flex justify-between border-t py-2 text-sm"><span>{p.name}{p.playerId===score.strikerId?" *":""}</span><span>{st.runs} ({st.balls}) · 4s {st.fours} · 6s {st.sixes}</span></div>})}</div>
+        <button onClick={undo} disabled={!balls.length||saving} className="flex w-full items-center justify-center gap-2 rounded-xl border py-3 font-semibold disabled:opacity-40"><Undo2 className="h-4 w-4"/>Undo last delivery</button>
+        {message && <p role="status" className="break-words rounded-lg bg-secondary p-3 text-sm">{message}</p>}
+        <p className="text-center text-xs text-muted-foreground">{saving?"Saving to Firebase…":ready?"Live score is synchronized with Firestore.":"Connecting to live score…"}</p>
       </div>
     </AppShell>
   );
