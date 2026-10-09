@@ -6,7 +6,8 @@ import { useAuth } from "@/lib/auth";
 import { Trash2 } from "lucide-react";
 import { db } from "@/lib/firebase";
 
-type InningsRecord = { team:number; runs:number; wkts:number; legal:number; batterStats?:Record<string,{runs:number;balls:number;fours:number;sixes:number;out:boolean}>; bowlerStats?:Record<string,{runs:number;wickets:number;legal:number}>; balls?:{id:string;label:string;runs:number;legal:boolean;wicket:boolean;batterId?:string;bowlerId?:string}[]; picks?:{playerId:string;name:string;team:0|1|"common"}[] };\ntype MatchDoc = { title: string; overs: number; teamNames: [string,string]; status: string; stage: string; venue?: string; date?: string; picks?: {playerId:string;name:string;team:0|1|"common"}[]; battingFirst?:0|1; firstInnings?: InningsRecord; tossResult?:string; tossWinner?:0|1 };
+type InningsRecord = { team:number; runs:number; wkts:number; legal:number; batterStats?:Record<string,{runs:number;balls:number;fours:number;sixes:number;out:boolean}>; bowlerStats?:Record<string,{runs:number;wickets:number;legal:number}>; balls?:{id:string;label:string;runs:number;legal:boolean;wicket:boolean;batterId?:string;bowlerId?:string}[]; picks?:{playerId:string;name:string;team:0|1|"common"}[] };
+type MatchDoc = { title: string; overs: number; teamNames: [string,string]; status: string; stage: string; venue?: string; date?: string; picks?: {playerId:string;name:string;team:0|1|"common"}[]; battingFirst?:0|1; firstInnings?: InningsRecord; tossResult?:string; tossWinner?:0|1 };
 type Score = {runs:number;wkts:number;legal:number;balls?:{id:string;label:string;runs:number;legal:boolean;wicket:boolean;batterId?:string;bowlerId?:string}[];batterStats?:Record<string,{runs:number;balls:number;fours:number;sixes:number;out:boolean}>;bowlerStats?:Record<string,{runs:number;wickets:number;legal:number}>;strikerId?:string;nonStrikerId?:string;bowlerId?:string;target?:number};
 export const Route = createFileRoute("/match/$matchId")({
   head: () => ({ meta: [{ title: "Match centre — GullyScore" }] }),
@@ -16,7 +17,8 @@ function MatchPage() {
   const {matchId}=Route.useParams();
   const { isAdmin } = useAuth();
   const [match,setMatch]=useState<MatchDoc|null>(null);
-  const [score,setScore]=useState<Score|null>(null);\n  const [selectedInnings,setSelectedInnings]=useState<1|2>(2);
+  const [score,setScore]=useState<Score|null>(null);
+  const [selectedInnings,setSelectedInnings]=useState<1|2>(2);
   useEffect(()=>{
     if(!db)return;
     const a=onSnapshot(doc(db,"matches",matchId),s=>setMatch(s.exists()?s.data() as MatchDoc:null));
