@@ -132,7 +132,7 @@ function Scoring() {
     const firstTeam = battingTeam;
     const nextTeam = (firstTeam === 0 ? 1 : 0) as 0 | 1;
     try {
-      await updateDoc(doc(db, "matches", matchId), { firstInnings: { team: firstTeam, runs: score.runs, wkts: score.wkts, legal: score.legal }, battingFirst: nextTeam });
+      await updateDoc(doc(db, "matches", matchId), { firstInnings: { team: firstTeam, runs: score.runs, wkts: score.wkts, legal: score.legal, batterStats: score.batterStats, bowlerStats: score.bowlerStats, balls: score.balls, picks: match.picks }, battingFirst: nextTeam });
       const nextScore: ScoreState = { ...emptyScore(), target: score.runs + 1 };
       await persist(nextScore);
       setShowNewBatter(false); setShowNextBowler(false); setManualStrike(false);
