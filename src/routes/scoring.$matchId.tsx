@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Undo2 } from "lucide-react";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { AppShell, BallChip } from "@/components/AppShell";
